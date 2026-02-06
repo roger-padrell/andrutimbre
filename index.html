@@ -3,66 +3,81 @@
     <title>Andrutimbre - Andruino team</title>
   </head>
   <body>
-    
+    <button onclick="await connect()">Connect</button>
   </body>
   <script>
-    async function sendToArduino(message) {
-  const TERMINATOR = "end_message";
-
-  // Request the serial port
-  const port = await navigator.serial.requestPort();
-
-  try {
-    // Open port at 9600 baud
-    await port.open({ baudRate: 9600 });
-
-    // Wait a moment for Arduino to reset
-    await new Promise(r => setTimeout(r, 500));
-
-    const encoder = new TextEncoder();
-    const decoder = new TextDecoder();
-
-    const writer = port.writable.getWriter();
-    const reader = port.readable.getReader();
-
-    let buffer = "";
-
-    try {
-      // 1️⃣ Flush any existing incoming data
-      const flushStart = Date.now();
-      while (Date.now() - flushStart < 100) {
-        const { value, done } = await reader.read();
-        if (done || !value) break;
-      }
-
-      // 2️⃣ Send the message (append newline for Arduino convenience)
-      await writer.write(encoder.encode(message + "\n"));
-
-      // 3️⃣ Read until TERMINATOR
-      buffer = "";
-      while (true) {
-        const { value, done } = await reader.read();
-        if (done) {
-          throw new Error("Serial port closed before terminator received");
-        }
-
-        buffer += decoder.decode(value, { stream: true });
-
-        const endIndex = buffer.indexOf(TERMINATOR);
-        if (endIndex !== -1) {
-          // Return everything before terminator
-          return buffer.slice(0, endIndex).trim();
-        }
-      }
-
-    } finally {
-      reader.releaseLock();
-      writer.releaseLock();
+    class Arduino {
+    constructor() {
+        this.port = null;
+        this.reader = null;
+        this.writer = null;
     }
 
-  } finally {
-    await port.close();
-  }
+    async open() {
+        // Request a port and open the connection
+        this.port = await navigator.serial.requestPort();
+        await this.port.open({ baudRate: 9600 });
+
+        // Create a writer and a reader
+        this.writer = this.port.writable.getWriter();
+        this.reader = this.port.readable.getReader();
+    }
+
+    async send(message) {
+        // Send the message with a newline
+        const msgWithNewline = message + "\n";
+        const encoder = new TextEncoder();
+        await this.writer.write(encoder.encode(msgWithNewline));
+
+        // Read the response
+        const response = await this.readResponse();
+        return response;
+    }
+
+    async readResponse() {
+        let response = '';
+        const decoder = new TextDecoder();
+
+        while (true) {
+            const { value, done } = await this.reader.read();
+            if (done) break;
+
+            // Decode the received data
+            response += decoder.decode(value, { stream: true });
+
+            // Check if the response ends with 'end_message'
+            if (response.endsWith('end_message')) {
+                // Remove 'end_message' from the response
+                response = response.slice(0, -12); // 12 is the length of 'end_message'
+                break;
+            }
+        }
+
+        return response;
+    }
+
+    async close() {
+        // Close the writer and reader, and the port
+        if (this.writer) {
+            await this.writer.releaseLock();
+        }
+        if (this.reader) {
+            await this.reader.releaseLock();
+        }
+        await this.port.close();
+    }
 }
+    window.connected = false;
+    async function connect(){
+      window.device = new Arduino();
+      await device.open()
+      if((await device.send("HELLO")) == "OLLEH"){
+         alert("Connection succesful");
+          window.connected = true;
+      } 
+      else{
+        alert("Connection error");
+      }
+    }
   </script>
 </html>
