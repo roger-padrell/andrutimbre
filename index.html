@@ -6,78 +6,100 @@
     <button onclick="await connect()">Connect</button>
   </body>
   <script>
-    class Arduino {
-    constructor() {
-        this.port = null;
-        this.reader = null;
-        this.writer = null;
+   const SerialMonitor = {
+  port: null,
+  reader: null,
+  writer: null,
+  keepReading: false,
+  buffer: "",
+
+  sentMessages: [],
+  receivedMessages: [],
+
+  async connect(baudRate = 9600) {
+    if (this.port) return;
+
+    this.port = await navigator.serial.requestPort();
+    await this.port.open({ baudRate });
+
+    this.writer = this.port.writable.getWriter();
+    this.reader = this.port.readable.getReader();
+
+    this.keepReading = true;
+    this.readLoop();
+  },
+
+  async disconnect() {
+    this.keepReading = false;
+
+    if (this.reader) {
+      await this.reader.cancel();
+      this.reader.releaseLock();
     }
 
-    async open() {
-        // Request a port and open the connection
-        this.port = await navigator.serial.requestPort();
-        await this.port.open({ baudRate: 9600 });
-
-        // Create a writer and a reader
-        this.writer = this.port.writable.getWriter();
-        this.reader = this.port.readable.getReader();
+    if (this.writer) {
+      this.writer.releaseLock();
     }
 
-    async send(message) {
-        // Send the message with a newline
-        const msgWithNewline = message + "\n";
-        const encoder = new TextEncoder();
-        await this.writer.write(encoder.encode(msgWithNewline));
-
-        // Read the response
-        const response = await this.readResponse();
-        return response;
+    if (this.port) {
+      await this.port.close();
     }
 
-    async readResponse() {
-        let response = '';
-        const decoder = new TextDecoder();
+    this.port = null;
+  },
 
-        while (true) {
-            const { value, done } = await this.reader.read();
-            if (done) break;
+  async send(message) {
+    if (!this.writer) throw new Error("Not connected");
 
-            // Decode the received data
-            response += decoder.decode(value, { stream: true });
+    const encoder = new TextEncoder();
+    await this.writer.write(encoder.encode(message + "\n"));
 
-            // Check if the response ends with 'end_message'
-            if (response.endsWith('end_message')) {
-                // Remove 'end_message' from the response
-                response = response.slice(0, -12); // 12 is the length of 'end_message'
-                break;
+    this.sentMessages.push({
+      message,
+      timestamp: new Date()
+    });
+  },
+
+  async readLoop() {
+    const decoder = new TextDecoder();
+
+    while (this.keepReading) {
+      try {
+        const { value, done } = await this.reader.read();
+        if (done) break;
+
+        if (value) {
+          this.buffer += decoder.decode(value);
+
+          // Process complete lines
+          let lines = this.buffer.split("\n");
+          this.buffer = lines.pop(); // remaining incomplete part
+
+          for (let line of lines) {
+            const clean = line.trim();
+            if (clean.length > 0) {
+              this.receivedMessages.push({
+                message: clean,
+                timestamp: new Date()
+              });
             }
+          }
         }
-
-        return response;
-    }
-
-    async close() {
-        // Close the writer and reader, and the port
-        if (this.writer) {
-            await this.writer.releaseLock();
-        }
-        if (this.reader) {
-            await this.reader.releaseLock();
-        }
-        await this.port.close();
-    }
-}
-    window.connected = false;
-    async function connect(){
-      window.device = new Arduino();
-      await device.open()
-      if((await device.send("HELLO")) == "OLLEH"){
-         alert("Connection succesful");
-          window.connected = true;
-      } 
-      else{
-        alert("Connection error");
+      } catch (err) {
+        break;
       }
     }
+  },
+
+  getLastReceived() {
+    if (this.receivedMessages.length === 0) return null;
+    return this.receivedMessages[this.receivedMessages.length - 1];
+  },
+
+  clearHistory() {
+    this.sentMessages = [];
+    this.receivedMessages = [];
+  }
+};
   </script>
 </html>
