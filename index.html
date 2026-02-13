@@ -6,6 +6,8 @@
     <button onclick="await connect()">Connect</button>
   </body>
   <script>
+  Array.prototype.lastItem = function(){return this[this.length-1]}
+    
    const SerialMonitor = {
   port: null,
   reader: null,
@@ -101,5 +103,16 @@
     this.receivedMessages = [];
   }
 };
+
+    async function connect() {
+      await SerialMonitor.connect();
+      await SerialMonitor.send("HELLO");
+      if(SerialMonitor.receivedMessages.lastItem == "OLLEH"){
+        alert("Success");
+      }
+      else{
+        alert("Error");
+      }
+    }
   </script>
 </html>
