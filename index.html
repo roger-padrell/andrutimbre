@@ -3,9 +3,13 @@
     <title>Andrutimbre - Andruino team</title>
   </head>
   <body>
-    <button onclick="await connect()">Connect</button>
+    <button onclick="connect()">Connect</button>
   </body>
   <script>
+function sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
+    
   Array.prototype.lastItem = function(){return this[this.length-1]}
     
    const SerialMonitor = {
@@ -106,7 +110,9 @@
 
     async function connect() {
       await SerialMonitor.connect();
+      await sleep(1000);
       await SerialMonitor.send("HELLO");
+      await sleep(1000);
       if(SerialMonitor.receivedMessages.lastItem == "OLLEH"){
         alert("Success");
       }
