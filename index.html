@@ -6,6 +6,7 @@
     <button onclick="connect()">Connect</button>
   </body>
   <script>
+  window.connected = false;
 function sleep(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
@@ -74,7 +75,7 @@ function sleep(ms) {
     }
 
     return this.getLastReceived();
-  }
+  },
 
   async readLoop() {
     const decoder = new TextDecoder();
@@ -117,5 +118,18 @@ function sleep(ms) {
     this.receivedMessages = [];
   }
 };
+
+async function connect(){
+  await SerialMonitor.connect();
+  sleep(500);
+  let hello = await SerialMonitor.sendAndExpect("HELLO");
+  if(hello != "OLLEH"){
+    alert("Error connecting")
+  }
+  else{
+    window.connected = true;
+    alert("Connection succesful! :)")
+  }
+}
   </script>
 </html>
