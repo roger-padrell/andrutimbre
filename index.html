@@ -3,7 +3,7 @@
     <title>Andrutimbre - Andruino team</title>
   </head>
   <body>
-    <button onclick="connect()">Connect</button>
+    <button id="connect" onclick="connect()">Connect</button>
   </body>
   <script>
   window.connected = false;
@@ -121,7 +121,9 @@ function sleep(ms) {
 
 async function connect(){
   await SerialMonitor.connect();
-  sleep(500);
+  document.getElementById("connect").onclick = check;
+}
+async function check(){
   SerialMonitor.sendAndExpect("HELLO").then((hello) => {
      if(hello != "OLLEH"){
       alert("Error connecting")
