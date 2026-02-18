@@ -9,9 +9,7 @@
 function sleep(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
-    
-  Array.prototype.lastItem = function(){return this[this.length-1]}
-    
+        
    const SerialMonitor = {
   port: null,
   reader: null,
@@ -66,6 +64,18 @@ function sleep(ms) {
     });
   },
 
+  async sendAndExpect(message) {
+    let beforeLen = this.receivedMessages.length;
+
+    await this.send(message);
+
+    while(this.receivedMessages.length <= beforeLen){
+      await sleep(500);
+    }
+
+    return this.getLastReceived();
+  }
+
   async readLoop() {
     const decoder = new TextDecoder();
 
@@ -107,18 +117,5 @@ function sleep(ms) {
     this.receivedMessages = [];
   }
 };
-
-    async function connect() {
-      await SerialMonitor.connect();
-      await sleep(1000);
-      await SerialMonitor.send("HELLO");
-      await sleep(1000);
-      if(SerialMonitor.receivedMessages.lastItem().message == "OLLEH"){
-        alert("Success");
-      }
-      else{
-        alert("Error");
-      }
-    }
   </script>
 </html>
