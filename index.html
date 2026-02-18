@@ -122,14 +122,15 @@ function sleep(ms) {
 async function connect(){
   await SerialMonitor.connect();
   sleep(500);
-  let hello = await SerialMonitor.sendAndExpect("HELLO");
-  if(hello != "OLLEH"){
-    alert("Error connecting")
-  }
-  else{
-    window.connected = true;
-    alert("Connection succesful! :)")
-  }
+  SerialMonitor.sendAndExpect("HELLO").then((hello) => {
+     if(hello != "OLLEH"){
+      alert("Error connecting")
+    }
+    else{
+      window.connected = true;
+      alert("Connection succesful! :)")
+    }
+  })
 }
   </script>
 </html>
