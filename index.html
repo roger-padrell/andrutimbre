@@ -3,13 +3,28 @@
     <title>Andrutimbre - Andruino team</title>
   </head>
   <body>
-    <button id="connect" onclick="connect()">Connect</button>
+    <h1>Terminal andrutimbre</h1>
+<button id="connect" onclick="connect()">Connect</button>
+<p>Status: <b id="status">Not Connected</b></p>
+<br>
+<button disabled onclick="askTime()">Time error</button>: <b id="other_time"></b>
+<br>
+<button disabled onclick="fixTime()">Fix time</button>
+<br>
+<h2>Schedule</h2>
+<button disabled onclick="getSchedule()">Get schedule</button>
+<table id="schedule"></table>
   </body>
   <script>
-  window.connected = false;
+    Array.prototype.equals = function(other){
+    return other.toString() == this.toString()
+}
+
 function sleep(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
+
+const MAX_ALARMS = 11; // actually 12, but the last one MUST be {255,255}
         
    const SerialMonitor = {
   port: null,
@@ -122,17 +137,159 @@ function sleep(ms) {
 async function connect(){
   await SerialMonitor.connect();
   document.getElementById("connect").onclick = check;
+document.getElementById("connect").innerHTML = "Check Connection";
 }
 async function check(){
   SerialMonitor.sendAndExpect("HELLO").then((hello) => {
-     if(hello != "OLLEH"){
+     if(hello.message != "OLLEH"){
       alert("Error connecting")
     }
     else{
-      window.connected = true;
-      alert("Connection succesful! :)")
+      window.connected = true;  document.getElementById("status").innerHTML = "Connected :)";
+      enableTerminal();
     }
   })
+}
+
+function enableTerminal(){
+  let arr = Array.from(document.querySelectorAll("button[disabled]"));
+  
+  for(let a in arr){
+    arr[a].disabled=false;
+  }
+}
+
+function askTime(){
+  SerialMonitor.sendAndExpect("ASK_TIME").then((time) => {
+    let parsed = parseTimeString(time.message);
+    let timeError = getTimeDifference(time.timestamp, parsed);
+    
+    document.getElementById("other_time").innerHTML = timeError;
+  })
+}
+
+function parseSchedule(str){
+  let s = str.replace("UPDATE ", "");
+  s = s.replaceAll("{", "[");
+  s = s.replaceAll("}", "]");
+  
+  parsed = JSON.parse(s);
+  return parsed;
+}
+
+function fixTime(){
+  let unixTime = Math.floor(Date.now() / 1000);
+  let msg = "TIME_" + unixTime;
+  SerialMonitor.sendAndExpect(msg).then((response) => {
+    console.log(response);
+    if(response.message.includes("OK")){
+      alert("Fixed time error");
+      askTime();
+    }
+  })
+}
+
+function getSchedule(){
+  SerialMonitor.sendAndExpect("GET").then((response) => {
+    let p = parseSchedule(response.message);
+    window.schedule = p[0];
+    renderSchedule(p[0]);
+  })
+}
+
+function renderSchedule(p){
+  let table = document.getElementById("schedule");
+  table.innerHTML = `
+  <tr>
+    <th>Dg.</th>
+    <th>Dl.</th>
+    <th>Dm.</th>
+    <th>Dc.</th>
+    <th>Dj.</th>
+    <th>Dv.</th>
+    <th>Ds.</th>
+  </tr>
+  `;
+  
+  let cont = true;
+  let hour = 0;
+  while(cont){
+    let n = "<tr>";
+    
+    cont = false;
+    for(let day in p){
+      if(p[day].length-1 >= hour){
+        if(p[day][hour] == undefined){
+          continue;
+        }
+        cont = true;
+        if(p[day][hour].toString() == "0,0" || p[day][hour].toString() == "255,255"){
+          n += "<td></td>";
+          continue;
+        }
+        n += `<td>${p[day][hour].join(":")}</td>`
+      }
+    }
+    
+    table.innerHTML += n;
+    hour++;
+  }
+}
+
+const days = "Monday, Tuesday, Wednesday, Thursday, Friday, Saturday, Sunday.".split(", ")º
+
+function parseTimeString(timeString) {
+    // Extract the date and time parts from the string
+    const dateTimeParts = timeString.split("TIME_")[1];
+    
+    // Create a Date object from the extracted string
+    const date = new Date(dateTimeParts);
+    
+    return date;
+}
+
+function getTimeDifference(startDate, endDate) {
+    // Calculate the difference in milliseconds
+    const difference = Math.abs(endDate - startDate);
+
+    // Calculate total seconds
+    const totalSeconds = Math.floor(difference / 1000);
+    
+    // Calculate days, months, years
+    const secondsInADay = 86400; // 60 * 60 * 24
+    const secondsInAMonth = 2592000; // Approximation: 30 days
+    const secondsInAYear = 31536000; // Approximation: 365 days
+
+    const years = Math.floor(totalSeconds / secondsInAYear);
+    const months = Math.floor((totalSeconds % secondsInAYear) / secondsInAMonth);
+    const days = Math.floor((totalSeconds % secondsInAMonth) / secondsInADay);
+    
+    // Calculate hours, minutes, and seconds
+    const hours = Math.floor((totalSeconds % secondsInADay) / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const remainingSeconds = totalSeconds % 60;
+
+    // Format the result
+    const formattedTime = 
+        `${days} days, ${months} months, ${years} years ` +
+        `${String(hours).padStart(2, '0')}h:${String(minutes).padStart(2, '0')}m:${String(remainingSeconds).padStart(2, '0')}s`;
+
+    return formattedTime;
+}
+
+function formatDateToTimeString(date) {
+    // Extract date components
+    const year = date.getUTCFullYear();
+    const month = String(date.getUTCMonth() + 1).padStart(2, '0'); // Months are zero-based
+    const day = String(date.getUTCDate()).padStart(2, '0');
+    
+    // Extract time components
+    const hours = String(date.getUTCHours()).padStart(2, '0');
+    const minutes = String(date.getUTCMinutes()).padStart(2, '0');
+    const seconds = String(date.getUTCSeconds()).padStart(2, '0');
+
+    // Format into TIME_... string
+    return `TIME_${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
 }
   </script>
 </html>
