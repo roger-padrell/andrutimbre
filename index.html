@@ -1,19 +1,19 @@
 <html>
   <head>
-    <title>Andrutimbre - Andruino team</title>
+    <title>Andrutimbre - Equip Andruino</title>
     <link rel="icon" href="favicon.png">
   </head>
   <body>
     <h1>Terminal andrutimbre</h1>
-<button id="connect" onclick="connect()">Connect</button>
-<p>Status: <b id="status">Not Connected</b></p>
+<button id="connect" onclick="connect()">Connecta</button>
+<p>Estat: <b id="status">No Connectar</b></p>
 <br>
-<button disabled onclick="askTime()">Time error</button>: <b id="other_time"></b>
+<button disabled onclick="askTime()">Diferència de temps</button>: <b id="other_time"></b>
 <br>
-<button disabled onclick="fixTime()">Fix time</button>
+<button disabled onclick="fixTime()">Arreglar dif. temps</button>
 <br>
-<h2>Schedule</h2>
-<button disabled onclick="getSchedule()">Get schedule</button>
+<h2>Horari: </h2>
+<button disabled onclick="getSchedule()">Obtenir horari</button>
 <table id="schedule"></table>
   </body>
   <script>
@@ -138,15 +138,15 @@ const MAX_ALARMS = 11; // actually 12, but the last one MUST be {255,255}
 async function connect(){
   await SerialMonitor.connect();
   document.getElementById("connect").onclick = check;
-document.getElementById("connect").innerHTML = "Check Connection";
+document.getElementById("connect").innerHTML = "Comprovar connexió";
 }
 async function check(){
   SerialMonitor.sendAndExpect("HELLO").then((hello) => {
      if(hello.message != "OLLEH"){
-      alert("Error connecting")
+      alert("Error de connexió")
     }
     else{
-      window.connected = true;  document.getElementById("status").innerHTML = "Connected :)";
+      window.connected = true;  document.getElementById("status").innerHTML = "Conectat :)";
       enableTerminal();
     }
   })
@@ -184,7 +184,7 @@ function fixTime(){
   SerialMonitor.sendAndExpect(msg).then((response) => {
     console.log(response);
     if(response.message.includes("OK")){
-      alert("Fixed time error");
+      alert("Dif. temporal arreglada");
       askTime();
     }
   })
@@ -237,7 +237,7 @@ function renderSchedule(p){
   }
 }
 
-const days = "Monday, Tuesday, Wednesday, Thursday, Friday, Saturday, Sunday.".split(", ")º
+const days = "Monday, Tuesday, Wednesday, Thursday, Friday, Saturday, Sunday.".split(", ")
 
 function parseTimeString(timeString) {
     // Extract the date and time parts from the string
